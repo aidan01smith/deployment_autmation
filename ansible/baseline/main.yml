@@ -1,0 +1,11 @@
+---
+- name: proxmox test main setup
+  hosts: all
+  become: tes
+  user: aidan.smith-adm
+
+
+- import_playbook: baseline/proxmox/main.yml
+- import_playbook: baseline/ubuntu/main.yml
+- import_playbook: services/docker.yml
+- import_playbook: services/uptimekuma.yml
