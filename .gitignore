@@ -1,0 +1,8 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+
+# make pyvenv.cfg ignored in the .gitignore file
+pyvenv.cfg
+
+#make the secrets file ignored in the .gitignore file
+ansible/baseline/proxmox/secrets.yml
+
