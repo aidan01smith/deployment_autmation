@@ -6,8 +6,6 @@ pyvenv.cfg
 #make the secrets file ignored in the .gitignore file
 ansible/baseline/proxmox/secrets.yml
 
-#make Scripts directory ignored in the .gitignore file
-Scripts/*
+# .venv/ ignore
 
-#make Lib directory ignored in the .gitignore file
-Lib/*
+.venv/

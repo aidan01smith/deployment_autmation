@@ -1,0 +1,34 @@
+# main.yml
+#
+# The baseline playbook: run this against every freshly provisioned guest to
+# bring it to a known-good state (updates, hardening, common packages, the
+# tailscale mesh) BEFORE any service-specific role runs.
+#
+# Run:  ansible-playbook baseline/main.yml
+# Dry:  ansible-playbook baseline/main.yml --check --diff
+
+- name: Baseline configuration for all guests
+  hosts: all          # every host the inventory returns
+  become: true        # run as root via sudo
+
+  roles:
+    # Order matters: OS prep first, then network, then the rest.
+    - role: ubuntu     # patches, base packages, a non-root admin user, hardening
+    - role: tailscale  # join the mesh VPN so everything is reachable privately
+
+  # Handlers referenced via `notify:` in the ubuntu tasks. (In a fully
+  # role-structured repo these auto-load from ubuntu/handlers/main.yml and this
+  # block is unnecessary.)
+  handlers:
+    - name: Restart ssh
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+
+# A second play, scoped only to the services group (Proxmox tag "services").
+- name: Deploy self-hosted services
+  hosts: tag_services
+  become: true
+
+  roles:
+    - role: services
