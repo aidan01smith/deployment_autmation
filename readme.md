@@ -94,18 +94,4 @@ ansible-playbook main.yml --ask-vault-pass
 - Terraform ≥ 1.7, Ansible (`pip install ansible proxmoxer requests`).
 - Collections: `ansible-galaxy collection install community.proxmox community.docker community.general ansible.posix`.
 
-## A note on secrets
 
-Nothing sensitive is committed. Add a `.gitignore` with at least:
-
-```
-*.tfvars
-*.tfstate
-*.tfstate.*
-.terraform/
-ansible/baseline/tailscale/tailscale_oauth_key.yml
-*.vault
-```
-
-Use `ansible-vault encrypt` for credential files and `TF_VAR_*` env vars for
-Terraform secrets.
