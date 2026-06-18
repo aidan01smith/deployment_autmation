@@ -1,0 +1,38 @@
+# proxmox/security.yml
+#
+# Creates the dedicated API users + tokens that Terraform and Ansible use,
+# instead of running everything as root@pam. Demonstrates that even host-level
+# Proxmox config can be codified.
+#
+# These shell out to `pveum` (Proxmox VE User Manager). In a more advanced
+# setup you'd use the community.proxmox.proxmox_user / _access modules, but
+# pveum keeps the example transparent about what's actually happening.
+
+- name: Create the terraform API user
+  ansible.builtin.command:
+    cmd: pveum user add terraform@pve --comment "Terraform provisioning"
+  register: tf_user
+  failed_when: tf_user.rc != 0 and 'already exists' not in tf_user.stderr
+  changed_when: "'already exists' not in tf_user.stderr"
+
+- name: Create the ansible API user
+  ansible.builtin.command:
+    cmd: pveum user add ansible@pve --comment "Ansible inventory + config"
+  register: ans_user
+  failed_when: ans_user.rc != 0 and 'already exists' not in ans_user.stderr
+  changed_when: "'already exists' not in ans_user.stderr"
+
+- name: Grant the terraform user VM admin rights at the datacenter root
+  ansible.builtin.command:
+    cmd: pveum acl modify / --users terraform@pve --roles PVEVMAdmin
+  changed_when: true
+
+- name: Grant the ansible user read + audit rights
+  ansible.builtin.command:
+    cmd: pveum acl modify / --users ansible@pve --roles PVEAuditor
+  changed_when: true
+
+# NOTE: token creation prints the secret exactly once and cannot be retrieved
+# again. Do this interactively the first time (see ../../README PROXMOX_API
+# guide) rather than in an unattended run, then store the secret in Vault.
+

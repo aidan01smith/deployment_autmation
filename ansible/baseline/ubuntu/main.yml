@@ -1,0 +1,43 @@
+# ubuntu/main.yml
+#
+# Base OS preparation. In a "role" layout this would live at
+# ubuntu/tasks/main.yml; for a learning repo we keep the flat names from your
+# tree and include the sub-files explicitly.
+#
+# Each "- name:" item is a TASK. A task calls one MODULE (ansible.builtin.apt,
+# etc.). Modules are idempotent: running twice changes nothing the second time,
+# which is the core promise of Ansible — describe desired state, not commands.
+
+- name: Update apt cache and upgrade all packages
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+    cache_valid_time: 3600   # skip the cache refresh if done in the last hour
+
+- name: Install common base packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - vim
+      - htop
+      - git
+      - qemu-guest-agent   # lets Proxmox/the inventory read the guest IP
+      - unattended-upgrades
+    state: present
+
+- name: Ensure qemu-guest-agent is running
+  ansible.builtin.service:
+    name: qemu-guest-agent
+    state: started
+    enabled: true
+
+- name: Set the system timezone
+  community.general.timezone:
+    name: "{{ system_timezone | default('America/New_York') }}"
+
+# Pull in the focused sub-playbooks. import_tasks inlines them at parse time.
+- name: Apply user management
+  ansible.builtin.import_tasks: user.yml
+
+- name: Apply security hardening
+  ansible.builtin.import_tasks: security.yml

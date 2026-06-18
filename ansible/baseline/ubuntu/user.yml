@@ -1,0 +1,30 @@
+# ubuntu/user.yml
+#
+# Creates and configures the admin user. Shows variables, loops, and how to
+# pull secrets in safely.
+#
+# Variables referenced here (admin_user, admin_ssh_keys, ...) would normally
+# live in group_vars/all.yml or be passed with -e. Defaults keep this runnable.
+
+- name: Create the admin user
+  ansible.builtin.user:
+    name: "{{ admin_user | default('homelab') }}"
+    groups: sudo
+    append: true            # add to sudo without clobbering existing groups
+    shell: /bin/bash
+    create_home: true
+
+- name: Install authorized SSH keys for the admin user
+  ansible.posix.authorized_key:
+    user: "{{ admin_user | default('homelab') }}"
+    key: "{{ item }}"
+    state: present
+  # loop runs this task once per list item; {{ item }} is the current value.
+  loop: "{{ admin_ssh_keys | default([]) }}"
+
+- name: Grant passwordless sudo to the admin user
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ admin_user | default('homelab') }}"
+    content: "{{ admin_user | default('homelab') }} ALL=(ALL) NOPASSWD:ALL\n"
+    mode: "0440"
+    validate: visudo -cf %s    # refuses to write a file that breaks sudo

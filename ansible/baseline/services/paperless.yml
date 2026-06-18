@@ -1,0 +1,56 @@
+# services/paperless.yml
+#
+# Paperless-ngx — scans, OCRs and indexes your documents into a searchable
+# archive. Needs three containers (app + Postgres + Redis), so it's a good
+# example of a stack with a real datastore and a generated secret.
+#
+# The secret key is pulled from a vault-encrypted var; never hardcode it.
+
+- name: Create the paperless stack directory
+  ansible.builtin.file:
+    path: /opt/stacks/paperless
+    state: directory
+    mode: "0755"
+
+- name: Deploy the Paperless-ngx compose stack
+  community.docker.docker_compose_v2:
+    project_name: paperless
+    definition:
+      services:
+        broker:
+          image: redis:7
+          container_name: paperless-redis
+          restart: unless-stopped
+          volumes:
+            - /opt/stacks/paperless/redis:/data
+
+        db:
+          image: postgres:16
+          container_name: paperless-db
+          restart: unless-stopped
+          environment:
+            POSTGRES_DB: paperless
+            POSTGRES_USER: paperless
+            POSTGRES_PASSWORD: "{{ paperless_db_password }}"   # from vault
+          volumes:
+            - /opt/stacks/paperless/db:/var/lib/postgresql/data
+
+        webserver:
+          image: ghcr.io/paperless-ngx/paperless-ngx:latest
+          container_name: paperless
+          restart: unless-stopped
+          depends_on: [db, broker]
+          ports:
+            - "8000:8000"
+          environment:
+            PAPERLESS_REDIS: redis://broker:6379
+            PAPERLESS_DBHOST: db
+            PAPERLESS_DBUSER: paperless
+            PAPERLESS_DBPASS: "{{ paperless_db_password }}"
+            PAPERLESS_SECRET_KEY: "{{ paperless_secret_key }}"
+            PAPERLESS_URL: "{{ paperless_url | default('http://localhost:8000') }}"
+          volumes:
+            - /opt/stacks/paperless/data:/usr/src/paperless/data
+            - /opt/stacks/paperless/media:/usr/src/paperless/media
+            - /opt/stacks/paperless/consume:/usr/src/paperless/consume
+    state: present

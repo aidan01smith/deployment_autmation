@@ -1,0 +1,39 @@
+# tailscale/tailscale.yml
+#
+# Joins each guest to your Tailscale mesh VPN. After baseline runs, every host
+# is reachable over a private 100.x address regardless of LAN/NAT — handy for
+# managing them from anywhere and for service-to-service traffic.
+#
+# Auth uses an OAuth client (preferred over a personal auth key) so keys can be
+# scoped and rotated. The secret is supplied via the vault-encrypted file
+# tailscale_oauth_key.yml (see example alongside this).
+
+- name: Add Tailscale's apt signing key
+  ansible.builtin.get_url:
+    url: https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    mode: "0644"
+
+- name: Add the Tailscale apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu jammy main"
+    state: present
+    filename: tailscale
+
+- name: Install tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: true
+
+- name: Bring the node up on the tailnet
+  ansible.builtin.command:
+    cmd: >
+      tailscale up
+      --authkey={{ tailscale_oauth_key }}
+      --hostname={{ inventory_hostname }}
+      --ssh
+  register: ts_up
+  # Only run if not already connected, so reruns are clean.
+  changed_when: "'Success' in ts_up.stdout or ts_up.rc == 0"
+  failed_when: ts_up.rc != 0 and 'already' not in (ts_up.stderr | default(''))

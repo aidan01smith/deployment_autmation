@@ -1,0 +1,33 @@
+# services/main.yml
+#
+# Orchestrates the self-hosted services. The pattern throughout: install Docker
+# once, then deploy each app as a docker compose stack via the
+# community.docker.docker_compose_v2 module. This keeps every service file
+# uniform and easy to read.
+#
+# Which services land on which host is controlled by tags/host_vars; here we
+# include them all and let `when:` guards (or simply running on the right host)
+# decide. For a learning repo, including everything is fine.
+
+- name: Install Docker (prerequisite for every stack)
+  ansible.builtin.import_tasks: docker.yml
+
+# --- existing services from your tree ---
+- name: Deploy Gitea (self-hosted git)
+  ansible.builtin.import_tasks: gitea.yml
+
+- name: Deploy media stack (Jellyfin + *arr)
+  ansible.builtin.import_tasks: media.yml
+
+- name: Deploy Paperless-ngx (document management)
+  ansible.builtin.import_tasks: paperless.yml
+
+- name: Deploy Uptime Kuma (status monitoring)
+  ansible.builtin.import_tasks: uptimekuma.yml
+
+# --- suggested additions (see services/README in repo notes) ---
+- name: Deploy Pi-hole (network-wide DNS + ad blocking)
+  ansible.builtin.import_tasks: pihole.yml
+
+- name: Deploy Nginx Proxy Manager (reverse proxy + TLS)
+  ansible.builtin.import_tasks: npm.yml

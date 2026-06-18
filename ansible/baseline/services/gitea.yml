@@ -1,0 +1,35 @@
+# services/gitea.yml
+#
+# Gitea — a lightweight self-hosted Git service (think a tiny GitHub). Great
+# place to host this very repo and let Semaphore pull from it.
+#
+# Pattern used by every service file: (1) make a directory under /opt/stacks,
+# (2) template a docker-compose.yml into it, (3) bring the stack up. The
+# `definition:` inline compose keeps each example self-contained.
+
+- name: Create the Gitea stack directory
+  ansible.builtin.file:
+    path: /opt/stacks/gitea
+    state: directory
+    mode: "0755"
+
+- name: Deploy the Gitea compose stack
+  community.docker.docker_compose_v2:
+    project_name: gitea
+    definition:
+      services:
+        gitea:
+          image: gitea/gitea:1.22
+          container_name: gitea
+          restart: unless-stopped
+          environment:
+            USER_UID: "1000"
+            USER_GID: "1000"
+          volumes:
+            - /opt/stacks/gitea/data:/data
+            - /etc/timezone:/etc/timezone:ro
+            - /etc/localtime:/etc/localtime:ro
+          ports:
+            - "3000:3000"   # web UI
+            - "2222:22"     # git over SSH
+    state: present

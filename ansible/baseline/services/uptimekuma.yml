@@ -1,0 +1,25 @@
+# services/uptimekuma.yml
+#
+# Uptime Kuma — a self-hosted status/monitoring dashboard. The simplest stack
+# here (one container, one volume), so it's a clean reference for the pattern.
+
+- name: Create the uptime-kuma stack directory
+  ansible.builtin.file:
+    path: /opt/stacks/uptimekuma
+    state: directory
+    mode: "0755"
+
+- name: Deploy the Uptime Kuma compose stack
+  community.docker.docker_compose_v2:
+    project_name: uptimekuma
+    definition:
+      services:
+        uptime-kuma:
+          image: louislam/uptime-kuma:1
+          container_name: uptime-kuma
+          restart: unless-stopped
+          ports:
+            - "3001:3001"
+          volumes:
+            - /opt/stacks/uptimekuma/data:/app/data
+    state: present

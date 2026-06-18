@@ -1,0 +1,30 @@
+# services/npm.yml  (SUGGESTED ADDITION)
+#
+# Nginx Proxy Manager — a GUI reverse proxy with one-click Let's Encrypt TLS.
+# Ties the whole homelab together: instead of remembering ports (3000, 8096,
+# 8000...), you give each service a hostname (gitea.home.lan) and NPM routes +
+# secures it. Excellent for learning how reverse proxies and certs fit in.
+
+- name: Create the npm stack directory
+  ansible.builtin.file:
+    path: /opt/stacks/npm
+    state: directory
+    mode: "0755"
+
+- name: Deploy the Nginx Proxy Manager compose stack
+  community.docker.docker_compose_v2:
+    project_name: npm
+    definition:
+      services:
+        npm:
+          image: jc21/nginx-proxy-manager:latest
+          container_name: npm
+          restart: unless-stopped
+          ports:
+            - "80:80"      # HTTP (cert challenges + redirects)
+            - "443:443"    # HTTPS
+            - "81:81"      # admin UI
+          volumes:
+            - /opt/stacks/npm/data:/data
+            - /opt/stacks/npm/letsencrypt:/etc/letsencrypt
+    state: present

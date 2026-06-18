@@ -1,0 +1,37 @@
+# services/pihole.yml  (SUGGESTED ADDITION)
+#
+# Pi-hole — network-wide DNS sinkhole and ad/tracker blocker. A great learning
+# service because it exposes UDP/TCP port mapping and a capability/privilege
+# wrinkle (binding port 53), which the others don't.
+#
+# What it does: acts as your LAN's DNS server; queries to ad/tracker domains
+# return nothing, so ads disappear network-wide without per-device config.
+
+- name: Create the pihole stack directory
+  ansible.builtin.file:
+    path: /opt/stacks/pihole
+    state: directory
+    mode: "0755"
+
+- name: Deploy the Pi-hole compose stack
+  community.docker.docker_compose_v2:
+    project_name: pihole
+    definition:
+      services:
+        pihole:
+          image: pihole/pihole:latest
+          container_name: pihole
+          restart: unless-stopped
+          ports:
+            - "53:53/tcp"
+            - "53:53/udp"
+            - "8081:80/tcp"     # admin UI (80 is often taken by a reverse proxy)
+          environment:
+            TZ: "{{ system_timezone | default('America/New_York') }}"
+            WEBPASSWORD: "{{ pihole_web_password }}"   # from vault
+          volumes:
+            - /opt/stacks/pihole/etc-pihole:/etc/pihole
+            - /opt/stacks/pihole/etc-dnsmasq:/etc/dnsmasq.d
+          cap_add:
+            - NET_ADMIN
+    state: present

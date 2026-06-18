@@ -1,0 +1,13 @@
+# ubuntu/handlers.yml
+#
+# Handlers for the ubuntu role. A handler is just a task with a name that other
+# tasks can `notify:`. It runs ONCE, at the end of the play, and only if it was
+# notified by a change. In a canonical role this file is handlers/main.yml.
+#
+# Wire it into a play with:  handlers: - import_tasks: ubuntu/handlers.yml
+# (or place it at ubuntu/handlers/main.yml in a real role and Ansible auto-loads it).
+
+- name: Restart ssh
+  ansible.builtin.service:
+    name: ssh
+    state: restarted

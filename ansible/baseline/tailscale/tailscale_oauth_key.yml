@@ -1,0 +1,6 @@
+# tailscale_oauth_key.yml
+#
+# REAL credential — encrypt with `ansible-vault encrypt tailscale_oauth_key.yml`
+# and make sure it is gitignored. See example_oauth_key.yml for the format.
+
+tailscale_oauth_key: "CHANGE_ME"

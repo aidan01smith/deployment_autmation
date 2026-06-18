@@ -1,0 +1,54 @@
+# ubuntu/security.yml
+#
+# Light hardening: SSH lockdown, a firewall, automatic security updates.
+# Demonstrates HANDLERS — tasks that run only when "notified" by a change,
+# and only once at the end of the play (e.g. restart sshd just once even if
+# several settings changed).
+
+- name: Harden SSH daemon configuration
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    validate: sshd -t -f %s
+  loop:
+    - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
+    - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+  notify: Restart ssh    # fires the matching handler (in handlers/main.yml) if changed
+
+- name: Install and enable UFW firewall
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+- name: Allow SSH through the firewall
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: Enable UFW with a default-deny inbound policy
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+
+- name: Enable unattended security upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: "0644"
+
+# NOTE on handlers: a handler is a named task you "notify" (above). In a proper
+# role it lives in ubuntu/handlers/main.yml, e.g.:
+#
+#   - name: Restart ssh
+#     ansible.builtin.service:
+#       name: ssh
+#       state: restarted
+#
+# Handlers run once, at the end of the play, only if something notified them.
+# A tasks file cannot contain a top-level `handlers:` key, so the handler
+# definition is kept in its own file (handlers/main.yml) alongside this role.

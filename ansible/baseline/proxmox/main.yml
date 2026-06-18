@@ -1,0 +1,27 @@
+# proxmox/main.yml
+#
+# These tasks run against the Proxmox HOST itself (the hypervisor), not the
+# guests. Use this to manage the node: build the cloud-init template Terraform
+# clones, create API users, set up storage, etc.
+#
+# Run with a targeted play, e.g.:
+#   ansible-playbook -i 'pve.lan,' proxmox/main.yml -u root
+
+- name: Manage the Proxmox host
+  hosts: proxmox_nodes
+  become: true
+
+  tasks:
+    - name: Ensure helper packages are present on the node
+      ansible.builtin.apt:
+        name:
+          - libguestfs-tools   # virt-customize, for injecting agent into images
+          - wget
+        state: present
+
+    - name: Apply machine (VM/template) management
+      ansible.builtin.import_tasks: machines.yml
+
+    - name: Apply node security
+      ansible.builtin.import_tasks: security.yml
+

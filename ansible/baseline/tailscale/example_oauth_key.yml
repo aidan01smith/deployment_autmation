@@ -1,0 +1,11 @@
+# example_oauth_key.yml
+#
+# Template for the Tailscale credential file. Copy to tailscale_oauth_key.yml
+# and ENCRYPT it before committing:
+#
+#   ansible-vault encrypt tailscale_oauth_key.yml
+#
+# Then run playbooks with --ask-vault-pass (or a vault password file).
+# Generate the key at: https://login.tailscale.com/admin/settings/oauth
+
+tailscale_oauth_key: "tskey-auth-xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx"

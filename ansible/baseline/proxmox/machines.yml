@@ -1,0 +1,58 @@
+# proxmox/machines.yml
+#
+# Builds the Ubuntu cloud-init TEMPLATE (VMID 9000) that Terraform clones.
+# This is the one piece Terraform cannot do for you, so automating it here
+# means the whole pipeline is reproducible from nothing.
+#
+# Strategy: download the official Ubuntu cloud image, bake in
+# qemu-guest-agent, create a VM, import the disk, then convert to a template.
+# We shell out to `qm`/`virt-customize` because there is no native module for
+# the full template-build flow — `ansible.builtin.command` with creates: keeps
+# it idempotent (it won't re-run if the marker already exists).
+
+- name: Download the Ubuntu cloud image
+  ansible.builtin.get_url:
+    url: https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+    dest: /var/lib/vz/template/iso/jammy-cloudimg.img
+    mode: "0644"
+
+- name: Inject qemu-guest-agent into the image
+  ansible.builtin.command:
+    cmd: virt-customize -a /var/lib/vz/template/iso/jammy-cloudimg.img --install qemu-guest-agent
+  register: virt_customize
+  changed_when: virt_customize.rc == 0
+
+- name: Create the template VM shell
+  ansible.builtin.command:
+    cmd: >
+      qm create {{ template_vmid | default(9000) }}
+      --name ubuntu-2204-cloud --memory 2048 --cores 2
+      --net0 virtio,bridge=vmbr0 --scsihw virtio-scsi-pci
+    creates: "/etc/pve/qemu-server/{{ template_vmid | default(9000) }}.conf"
+
+- name: Import the cloud image as the VM's disk
+  ansible.builtin.command:
+    cmd: >
+      qm importdisk {{ template_vmid | default(9000) }}
+      /var/lib/vz/template/iso/jammy-cloudimg.img local-lvm
+  args:
+    creates: "/dev/pve/vm-{{ template_vmid | default(9000) }}-disk-0"
+
+- name: Attach disk, add cloud-init drive, set boot order
+  ansible.builtin.command:
+    cmd: "{{ item }}"
+  loop:
+    - "qm set {{ template_vmid | default(9000) }} --scsi0 local-lvm:vm-{{ template_vmid | default(9000) }}-disk-0"
+    - "qm set {{ template_vmid | default(9000) }} --ide2 local-lvm:cloudinit"
+    - "qm set {{ template_vmid | default(9000) }} --boot c --bootdisk scsi0"
+    - "qm set {{ template_vmid | default(9000) }} --serial0 socket --vga serial0"
+    - "qm set {{ template_vmid | default(9000) }} --agent enabled=1"
+  changed_when: true
+
+- name: Convert the VM into a template
+  ansible.builtin.command:
+    cmd: "qm template {{ template_vmid | default(9000) }}"
+  register: qm_template
+  failed_when: qm_template.rc != 0 and 'already a template' not in qm_template.stderr
+  changed_when: qm_template.rc == 0
+

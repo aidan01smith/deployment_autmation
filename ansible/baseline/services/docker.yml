@@ -1,0 +1,56 @@
+# services/docker.yml
+#
+# Installs Docker Engine + the compose plugin from Docker's official repo.
+# Everything else in services/ assumes this has run.
+
+- name: Install prerequisites for the Docker repo
+  ansible.builtin.apt:
+    name: [ca-certificates, curl, gnupg]
+    state: present
+    update_cache: true
+
+- name: Add Docker's GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Add the Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+
+- name: Install Docker Engine and the compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+
+- name: Ensure Docker is running and enabled at boot
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add the admin user to the docker group
+  ansible.builtin.user:
+    name: "{{ admin_user | default('homelab') }}"
+    groups: docker
+    append: true
+
+- name: Create a parent directory for all compose stacks
+  ansible.builtin.file:
+    path: /opt/stacks
+    state: directory
+    mode: "0755"
+
+# Install the Python SDK the docker_compose_v2 module needs on the target.
+- name: Install the Docker SDK for Python
+  ansible.builtin.pip:
+    name: docker
+    state: present

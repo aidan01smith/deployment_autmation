@@ -1,0 +1,55 @@
+# services/media.yml
+#
+# A media stack: Jellyfin (open-source media server) plus a couple of the
+# "*arr" managers. Demonstrates a multi-container stack sharing volumes and a
+# host_var for where your media library lives.
+
+- name: Create the media stack directory
+  ansible.builtin.file:
+    path: /opt/stacks/media
+    state: directory
+    mode: "0755"
+
+- name: Deploy the media compose stack
+  community.docker.docker_compose_v2:
+    project_name: media
+    definition:
+      services:
+        jellyfin:
+          image: jellyfin/jellyfin:latest
+          container_name: jellyfin
+          restart: unless-stopped
+          ports:
+            - "8096:8096"
+          volumes:
+            - /opt/stacks/media/jellyfin-config:/config
+            - "{{ media_library_path | default('/srv/media') }}:/media:ro"
+
+        sonarr:                       # TV management
+          image: lscr.io/linuxserver/sonarr:latest
+          container_name: sonarr
+          restart: unless-stopped
+          environment:
+            PUID: "1000"
+            PGID: "1000"
+            TZ: "{{ system_timezone | default('America/New_York') }}"
+          ports:
+            - "8989:8989"
+          volumes:
+            - /opt/stacks/media/sonarr-config:/config
+            - "{{ media_library_path | default('/srv/media') }}:/media"
+
+        radarr:                       # Movie management
+          image: lscr.io/linuxserver/radarr:latest
+          container_name: radarr
+          restart: unless-stopped
+          environment:
+            PUID: "1000"
+            PGID: "1000"
+            TZ: "{{ system_timezone | default('America/New_York') }}"
+          ports:
+            - "7878:7878"
+          volumes:
+            - /opt/stacks/media/radarr-config:/config
+            - "{{ media_library_path | default('/srv/media') }}:/media"
+    state: present
